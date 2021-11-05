@@ -51,7 +51,7 @@ void Stack_Ctor (stack* stk)
     stk->canary1 = 0xBE31AB;
     stk->capacity = CAPACITY_0;
     stk->size = 0;
-    stk->data = (double*) (calloc (CAPACITY_0 * sizeof (double) + 2 * sizeof (long), sizeof (char)) + sizeof (long));
+    stk->data = (double*) ((char*)calloc (CAPACITY_0 * sizeof (double) + 2 * sizeof (long), sizeof (char)) + sizeof (long));
     *((long*)((char*)stk->data - sizeof (long))) = 0xD1CC0C; // left canary of stack
     *((long*)((char*)stk->data + CAPACITY_0 * sizeof(double))) = 0xC0CA0; //right canary of data
     stk->logfile = fopen ("logfile.txt", "w");
@@ -62,7 +62,6 @@ void Stack_Dtor (stack* stk)
 {
     fclose (stk->logfile);
     free ((char*)stk->data - sizeof(long));
-    free (stk);
 }
 
 int Stack_Push (stack* stk, double push)
@@ -92,7 +91,7 @@ int Stack_Resize (stack* stk)
 {
     stk->capacity += CAPACITY_0;
     stk->data = (double*) (realloc ((void*)((char*)stk->data - sizeof (long)), stk->capacity * sizeof (double) + 2 * sizeof(long)) + sizeof(long));
-    if ((char*)(stk->data) == (char*)sizeof(long))
+    if ((char*)(stk->data) - sizeof (long)== NULL)
     {
         fprintf (stk->logfile, " !!!Stack Resize error!!! :\ncapacity = %zd;\nsize = %zd\nGo and buy new laptop.\n", stk->capacity, stk->size);
         return 0;
