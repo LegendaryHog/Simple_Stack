@@ -15,12 +15,12 @@ static long long Hash_Calc (stack* stk)
 
     for (int i = 0; i < sizeof (stack); i++)
     {
-        if (!(i >= 3 * sizeof (long long) + sizeof (type_t*) + sizeof (FILE*) && i < 4 * sizeof (long long) + sizeof (type_t*) + sizeof (FILE*)))
+        if (!(i >= 3 * sizeof (long long) + sizeof (type_d*) + sizeof (FILE*) && i < 4 * sizeof (long long) + sizeof (type_d*) + sizeof (FILE*)))
         {
             hash += (i + 1) * (*((char*)stk + i));
         }
     }
-    for (size_t i = 0; i < stk->capacity * sizeof (type_t) + 2 * sizeof (long long); i++)
+    for (size_t i = 0; i < stk->capacity * sizeof (type_d) + 2 * sizeof (long long); i++)
     {
         hash += (i + 1) * (*((char*)stk->data + i));
     }
@@ -57,7 +57,7 @@ void Stack_Ctor (stack* stk)
     stk->canary1 = 0xBE31AB;
     stk->capacity = CAPACITY_0;
     stk->size = 0;
-    stk->data = (type_t*) ((char*)calloc (CAPACITY_0 * sizeof (type_t) + 2 * sizeof (long long), sizeof (char)) + sizeof (long long));
+    stk->data = (type_d*) ((char*)calloc (CAPACITY_0 * sizeof (type_d) + 2 * sizeof (long long), sizeof (char)) + sizeof (long long));
     DATACANARY1 = 0xD1CC0C; // left canary of stack
     DATACANARY2 = 0xC0CA0;  //right canary of data
     stk->logfile = fopen ("logfile.txt", "w");
@@ -73,7 +73,7 @@ void Stack_Dtor (stack* stk)
     free ((char*)stk->data - sizeof(long long));
 }
 
-int Stack_Push (stack* stk, type_t push)
+int Stack_Push (stack* stk, type_d push)
 {
     Hash_Check (stk);
     Stack_Check (stk);
@@ -100,7 +100,7 @@ int Stack_Resize_Up (stack* stk)
     if (stk->size == stk->capacity)
     {
         stk->capacity *= 2;
-        stk->data = (type_t*) ((char*)realloc ((void*)((char*)stk->data - sizeof (long long)), stk->capacity * sizeof (type_t) + 2 * sizeof(long long)) + sizeof(long long));
+        stk->data = (type_d*) ((char*)realloc ((void*)((char*)stk->data - sizeof (long long)), stk->capacity * sizeof (type_d) + 2 * sizeof(long long)) + sizeof(long long));
         if ((char*)(stk->data) - sizeof (long long)== NULL)
         {
             fprintf (stk->logfile, " !!!Stack Resize error!!! :\ncapacity = %z;\nsize = %lld\nGo and buy new laptop.\n", stk->capacity, stk->size);
@@ -110,8 +110,8 @@ int Stack_Resize_Up (stack* stk)
         }
         else
         {
-            DATACANARY2 = *((long long*)((char*)stk->data + stk->capacity/2 * sizeof (type_t)));
-            *((long long*)((char*)stk->data + stk->capacity/2 * sizeof (type_t))) = 0;
+            DATACANARY2 = *((long long*)((char*)stk->data + stk->capacity/2 * sizeof (type_d)));
+            *((long long*)((char*)stk->data + stk->capacity/2 * sizeof (type_d))) = 0;
             for (int i = 0; i < stk->capacity/2; i++)
             {
                 stk->data[stk->capacity/2 + i] = 0;
@@ -138,7 +138,7 @@ int Stack_Resize_Down (stack* stk)
     if (stk->size == stk->capacity/2 - 5)
     {
         stk->capacity /= 2;
-        stk->data = (type_t*) ((char*)realloc ((void*)((char*)stk->data - sizeof (long long)), stk->capacity * sizeof (type_t) + 2 * sizeof(long long)) + sizeof(long long));
+        stk->data = (type_d*) ((char*)realloc ((void*)((char*)stk->data - sizeof (long long)), stk->capacity * sizeof (type_d) + 2 * sizeof(long long)) + sizeof(long long));
         if ((char*)(stk->data) - sizeof (long long)== NULL)
         {
             fprintf (stk->logfile, " !!!Stack Resize error!!! :\ncapacity = %z;\nsize = %lld\nGo and buy new laptop.\n", stk->capacity, stk->size);
@@ -148,8 +148,8 @@ int Stack_Resize_Down (stack* stk)
         }
         else
         {
-            DATACANARY2 = *((long long*)((char*)stk->data + start_capacity * sizeof (type_t)));
-            *((long long*)((char*)stk->data + start_capacity * sizeof (type_t))) = 0;
+            DATACANARY2 = *((long long*)((char*)stk->data + start_capacity * sizeof (type_d)));
+            *((long long*)((char*)stk->data + start_capacity * sizeof (type_d))) = 0;
             Stack_Check (stk);
             Hash_Up (stk);
             return 1;
@@ -162,31 +162,35 @@ int Stack_Resize_Down (stack* stk)
     }
 }
 
-type_t Stack_Pop (stack* stk)
+type_d Stack_Pop (stack* stk)
 {
     Hash_Check (stk);
     Stack_Check (stk);
-    Stack_Resize_Down (stk);
+
     if (stk->size == 0)
     {
         fprintf (stk->logfile, "!!! STACK UNDERFLOW !!!\n");
-        stk->size--;
+        Stack_Dump (stk, "stack underflow,");
         return 0;
     }
+    Stack_Resize_Down (stk);
     stk->size--;
-    type_t pop = stk->data[stk->size];
+    type_d pop = stk->data[stk->size];
     stk->data[stk->size] = 0;
-    Stack_Check (stk);
+
     Hash_Up (stk);
+
     return pop;
 }
 
-void Stack_Dump (stack* stk)
+void Stack_Dump (stack* stk, char* str)
 {
     fprintf (stk->logfile, "Stack [%p]", stk);
-    if (STACK_IS_BAD)
+    if (STACK_IS_BAD || *str != '\0')
     {
         fprintf (stk->logfile, "Stack is BAD. ERORRS:");
+
+        fprintf (stk->logfile, str);
 
         if (stk->capacity < CAPACITY_0)
         {
@@ -194,7 +198,7 @@ void Stack_Dump (stack* stk)
         }
         if (stk->size < 0)
         {
-            fprintf (stk->logfile, "stack underflow,");
+            fprintf (stk->logfile, "bad size,");
         }
         if (stk->size > stk->capacity)
         {
@@ -298,7 +302,7 @@ void Stack_Check (stack* stk)
 {
     if (StaCkok (stk) == 0)
     {
-        Stack_Dump (stk);
+        Stack_Dump (stk, "");
     }
 }
 

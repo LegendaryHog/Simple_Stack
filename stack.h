@@ -8,20 +8,20 @@
 #include <assert.h>
 
 #define _FMT_ "%lf"
-#define type_t double
+#define type_d double
 
 #define STACK_IS_BAD stk->capacity < CAPACITY_0 || stk->size < 0 || stk->size > stk->capacity || stk == NULL || stk->data == NULL\
- || stk->canary1 != 0xBE31AB || stk->canary2 !=  0xBADDED  || DATACANARY1 != 0xD1CC0C\
+ || stk->canary1 != 0xBE31AB || stk->canary2 !=  0xBADDED  || DATACANARY1 != 0xD1CC0C                                            \
  || DATACANARY2 != 0xC0CA0
 #define DATACANARY1 *((long long*)((char*)stk->data - sizeof(long long)))
-#define DATACANARY2 *((long long*)((char*)stk->data + stk->capacity * sizeof(type_t)))
+#define DATACANARY2 *((long long*)((char*)stk->data + stk->capacity * sizeof(type_d)))
 #define CAPACITY_0 8
 
 typedef struct {
     long long canary1;
     long long size;
     long long capacity;
-    type_t* data;
+    type_d* data;
     FILE* logfile;
     long long hash;
     long long canary2;
@@ -42,19 +42,19 @@ void Stack_Ctor (stack* stk);
 
 void Stack_Dtor (stack* stk);
 
-int Stack_Push (stack* stk, type_t push);
+int Stack_Push (stack* stk, type_d push);
 
 int Stack_Resize_Up (stack* stk);
 
 int Stack_Resize_Down (stack* stk);
 
-type_t Stack_Pop (stack* stk);
+type_d Stack_Pop (stack* stk);
 
 void Satck_Dump (stack* stk);
 
 void ass (int expression, FILE* logfile);
 
-void Stack_Dump (stack* stk);
+void Stack_Dump (stack* stk, char* str);
 
 int StaCkok (stack* stk);
 
