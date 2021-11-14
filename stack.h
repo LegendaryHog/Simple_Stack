@@ -7,11 +7,15 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#define POISON 1000-7
+
 #define type_d double
 #define _FMT_ "%lf"
+#define canary_t long long
 
-#define DATACANARY1 *((long long*)((char*)stk->data - sizeof(long long)))
-#define DATACANARY2 *((long long*)((char*)stk->data + stk->capacity * sizeof(type_d)))
+#define DATACANARY1 *((canary_t*)((char*)stk->data - sizeof (canary_t)))
+#define DATACANARY2 *((canary_t*)((char*)stk->data + stk->capacity * sizeof(type_d)))
+
 #define CAPACITY_0 8
 
 enum {
@@ -21,7 +25,6 @@ enum {
 
 typedef struct {
     long long canary1;
-    bool exst;
     long long size;
     long long capacity;
     type_d* data;
