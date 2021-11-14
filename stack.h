@@ -7,15 +7,17 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define _FMT_ "%lf"
 #define type_d double
+#define _FMT_ "%lf"
 
-#define STACK_IS_BAD stk->capacity < CAPACITY_0 || stk->size < 0 || stk->size > stk->capacity || stk == NULL || stk->data == NULL\
- || stk->canary1 != 0xBE31AB || stk->canary2 !=  0xBADDED  || DATACANARY1 != 0xD1CC0C                                            \
- || DATACANARY2 != 0xC0CA0
 #define DATACANARY1 *((long long*)((char*)stk->data - sizeof(long long)))
 #define DATACANARY2 *((long long*)((char*)stk->data + stk->capacity * sizeof(type_d)))
 #define CAPACITY_0 8
+
+enum {
+    NO,
+    YES
+};
 
 typedef struct {
     long long canary1;
@@ -50,11 +52,9 @@ int Stack_Resize_Down (stack* stk);
 
 type_d Stack_Pop (stack* stk);
 
-void Satck_Dump (stack* stk);
-
 void ass (int expression, FILE* logfile);
 
-void Stack_Dump (stack* stk, char* str);
+void Stack_Dump (stack* stk);
 
 int StaCkok (stack* stk);
 

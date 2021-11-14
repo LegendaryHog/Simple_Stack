@@ -6,14 +6,14 @@ int main (void)
 
     Stack_Ctor (&stk);
 
-   // for (int i = 0; i < 32; i++)
-    //{
-      //  Stack_Push (&stk, 10);
-    //}
+    for (int i = 0; i < 2000; i++)
+    {
+       Stack_Push (&stk, 10);
+    }
 
-    Stack_Dump (&stk, "");
+    Stack_Dump (&stk);
     Stack_Pop (&stk);
-    Stack_Dump (&stk, "");
+    Stack_Dump (&stk);
     Stack_Dtor (&stk);
 
     return 0;

@@ -1,5 +1,26 @@
 #include "stack.h"
 
+typedef struct {
+    bool exst;
+    char er_name[32];
+} error;
+
+static error stk_error[] = {
+    {NO, "stack left canary corruption"},  //(0)
+    {NO, "stack right canary corruption"}, //(1)
+    {NO, "data left canary corruption"},   //(2)
+    {NO, "data right canary corruption"},  //(3)
+    {NO, "stack underflow"},               //(4)
+    {NO, "stack overflow"},                //(5)
+    {NO, "size less null"},                //(6)
+    {NO, "capacity less start capacity"},  //(7)
+    {NO, "data pointer is null"},          //(8)
+    {NO, "stack pointer is null"},         //(9)
+    {NO, "logfile pointer is null"},       //(10)
+    {NO, "hash check error"},              //(11)
+    {NO, "double dtor"}                    //(12)
+};
+
 void ass (int expression, FILE* logfile)
 {
     if (expression == 0)
@@ -34,6 +55,7 @@ static int Hash_Check (stack* stk)
 
     if (hash != stk->hash)
     {
+        stk_error[11].exst = YES;
         for (int i = 0; i < 3; i++)
         {
             fprintf (stk->logfile, "\n !!! HASH CHECK ERROR !!! \n\n");
@@ -57,7 +79,7 @@ void Stack_Ctor (stack* stk)
     stk->canary1 = 0xBE31AB;
     stk->capacity = CAPACITY_0;
     stk->size = 0;
-    stk->data = (type_d*) ((char*)calloc (CAPACITY_0 * sizeof (type_d) + 2 * sizeof (long long), sizeof (char)) + sizeof (long long));
+    stk->data = (type_d*) ((char*) calloc (CAPACITY_0 * sizeof (type_d) + 2 * sizeof (long long), sizeof (char)) + sizeof (long long));
     DATACANARY1 = 0xD1CC0C; // left canary of stack
     DATACANARY2 = 0xC0CA0;  //right canary of data
     stk->logfile = fopen ("logfile.txt", "w");
@@ -69,8 +91,15 @@ void Stack_Ctor (stack* stk)
 void Stack_Dtor (stack* stk)
 {
     Stack_Check (stk);
-    fclose (stk->logfile);
-    free ((char*)stk->data - sizeof(long long));
+    if (stk == NULL && stk->data == NULL)
+    {
+        stk_error[12].exst = YES;
+    }
+    else
+    {
+        fclose (stk->logfile);
+        free ((char*)stk->data - sizeof(long long));
+    }
 }
 
 int Stack_Push (stack* stk, type_d push)
@@ -103,7 +132,7 @@ int Stack_Resize_Up (stack* stk)
         stk->data = (type_d*) ((char*)realloc ((void*)((char*)stk->data - sizeof (long long)), stk->capacity * sizeof (type_d) + 2 * sizeof(long long)) + sizeof(long long));
         if ((char*)(stk->data) - sizeof (long long)== NULL)
         {
-            fprintf (stk->logfile, " !!!Stack Resize error!!! :\ncapacity = %z;\nsize = %lld\nGo and buy new laptop.\n", stk->capacity, stk->size);
+            fprintf (stk->logfile, " !!!Stack Resize error!!! :\ncapacity = %lld;\nsize = %lld\nGo and buy new laptop.\n", stk->capacity, stk->size);
             Stack_Check (stk);
             Hash_Up (stk);
             return 0;
@@ -169,8 +198,9 @@ type_d Stack_Pop (stack* stk)
 
     if (stk->size == 0)
     {
+        stk_error[4].exst = YES;
         fprintf (stk->logfile, "!!! STACK UNDERFLOW !!!\n");
-        Stack_Dump (stk, "stack underflow,");
+        Stack_Dump (stk);
         return 0;
     }
     Stack_Resize_Down (stk);
@@ -183,40 +213,29 @@ type_d Stack_Pop (stack* stk)
     return pop;
 }
 
-void Stack_Dump (stack* stk, char* str)
+static int Error_Sum (void)
+{
+    int error_sum = 0;
+    for (int i = 0; i < 13; i++)
+    {
+        error_sum += stk_error[i].exst;
+    }
+    return error_sum;
+}
+
+void Stack_Dump (stack* stk)
 {
     fprintf (stk->logfile, "Stack [%p]", stk);
-    if (STACK_IS_BAD || *str != '\0')
+    if (Error_Sum () > 0)
     {
-        fprintf (stk->logfile, "Stack is BAD. ERORRS:");
-
-        fprintf (stk->logfile, str);
-
-        if (stk->capacity < CAPACITY_0)
+        fprintf (stk->logfile, "Stack is BAD:\n");
+        for (int i = 0; i < 13; i++)
         {
-            fprintf (stk->logfile, "bad capacity,");
+            if (stk_error[i].exst == YES)
+            {
+                fprintf (stk->logfile, "%s;\n", stk_error[i].er_name);
+            }
         }
-        if (stk->size < 0)
-        {
-            fprintf (stk->logfile, "bad size,");
-        }
-        if (stk->size > stk->capacity)
-        {
-            fprintf (stk->logfile, "stack overflow,");
-        }
-        if (stk == NULL || stk->data == NULL)
-        {
-            fprintf (stk->logfile, "Null pointer,");
-        }
-        if (stk->canary1 != 0xBE31AB || stk->canary2 !=  0xBADDED)
-        {
-            fprintf (stk->logfile, "stack canary corruption,");
-        }
-        if (DATACANARY1 != 0xD1CC0C || DATACANARY2 != 0xC0CA0)
-        {
-            fprintf (stk->logfile, "data canary corruption,");
-        }
-        fprintf (stk->logfile, "\n");
     }
     else
     {
@@ -226,7 +245,7 @@ void Stack_Dump (stack* stk, char* str)
     fprintf (stk->logfile, "{\n    canary1 = %0X\n    capacity = %zd\n    size = %lld\n    ", stk->canary1, stk->capacity, stk->size);
     fprintf (stk->logfile, "data [%p]\n    {\n        ", stk->data);
     fprintf (stk->logfile, "datacanary1 = %0X\n        ", DATACANARY1);
-    if (stk->capacity <= 32)
+    if (stk->capacity <= 48)
     {
         for (size_t i = 0; i < stk->capacity; i++)
         {
@@ -288,7 +307,18 @@ void Stack_Dump (stack* stk, char* str)
 
 int StaCkok (stack* stk)
 {
-    if (STACK_IS_BAD)
+    stk_error[0].exst = (stk->canary1 != 0xBE31AB);
+    stk_error[1].exst = (stk->canary2 !=  0xBADDED);
+    stk_error[2].exst = (DATACANARY1 != 0xD1CC0C);
+    stk_error[3].exst = (DATACANARY2 != 0xC0CA0);
+    stk_error[5].exst = (stk->size > stk->capacity);
+    stk_error[6].exst = (stk->size < 0);
+    stk_error[7].exst = (stk->capacity < CAPACITY_0);
+    stk_error[8].exst = (stk->data == NULL);
+    stk_error[9].exst = (stk == NULL);
+    stk_error[10].exst = (stk->logfile == NULL);
+
+    if (Error_Sum () > 0)
     {
         return 0;
     }
@@ -302,7 +332,7 @@ void Stack_Check (stack* stk)
 {
     if (StaCkok (stk) == 0)
     {
-        Stack_Dump (stk, "");
+        Stack_Dump (stk);
     }
 }
 
