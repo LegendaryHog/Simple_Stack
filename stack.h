@@ -21,6 +21,7 @@ enum {
 
 typedef struct {
     long long canary1;
+    bool exst;
     long long size;
     long long capacity;
     type_d* data;
@@ -54,7 +55,7 @@ type_d Stack_Pop (stack* stk);
 
 void ass (int expression, FILE* logfile);
 
-void Stack_Dump (stack* stk);
+int Stack_Dump (stack* stk);
 
 int StaCkok (stack* stk);
 

@@ -2,30 +2,30 @@
 
 typedef struct {
     bool exst;
-    char er_name[32];
+    char er_name[34];
 } error;
 
 static error stk_error[] = {
-    {NO, "stack left canary corruption"},  //(0)
-    {NO, "stack right canary corruption"}, //(1)
-    {NO, "data left canary corruption"},   //(2)
-    {NO, "data right canary corruption"},  //(3)
-    {NO, "stack underflow"},               //(4)
-    {NO, "stack overflow"},                //(5)
-    {NO, "size less null"},                //(6)
-    {NO, "capacity less start capacity"},  //(7)
-    {NO, "data pointer is null"},          //(8)
-    {NO, "stack pointer is null"},         //(9)
-    {NO, "logfile pointer is null"},       //(10)
-    {NO, "hash check error"},              //(11)
-    {NO, "double dtor"}                    //(12)
+    {false, "stack left canary corruption"},  //(0)
+    {false, "stack right canary corruption"}, //(1)
+    {false, "data left canary corruption"},   //(2)
+    {false, "data right canary corruption"},  //(3)
+    {false, "stack underflow"},               //(4)
+    {false, "stack overflow"},                //(5)
+    {false, "size less null"},                //(6)
+    {false, "capacity less start capacity"},  //(7)
+    {false, "!!! DATA POINTER IS NULL !!!"},  //(8)
+    {false, "!!! STACK POINTER IS NULL !!!"}, //(9)
+    {false, "logfile pointer is null"},       //(10)
+    {false, "hash check error"},              //(11)
+    {false, "!!! DOUBLE DTOR !!!"}            //(12)
 };
 
 void ass (int expression, FILE* logfile)
 {
     if (expression == 0)
     {
-        fprintf (logfile, "\n do meow from str %d from function %s", __LINE__, __PRETTY_FUNCTION__ );
+        fprintf (logfile, "\n do meow from line %d from function %s", __LINE__, __PRETTY_FUNCTION__ );
     }
 }
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -36,14 +36,14 @@ static long long Hash_Calc (stack* stk)
 
     for (int i = 0; i < sizeof (stack); i++)
     {
-        if (!(i >= 3 * sizeof (long long) + sizeof (type_d*) + sizeof (FILE*) && i < 4 * sizeof (long long) + sizeof (type_d*) + sizeof (FILE*)))
+        if (!(i >= 3*sizeof (long long) + sizeof (type_d*) + sizeof (FILE*) + sizeof (bool) && i < 4*sizeof (long long) + sizeof (type_d*) + sizeof (FILE*) + sizeof (bool)))
         {
             hash += (i + 1) * (*((char*)stk + i));
         }
     }
-    for (size_t i = 0; i < stk->capacity * sizeof (type_d) + 2 * sizeof (long long); i++)
+    for (long long i = 0; i < stk->capacity * sizeof (type_d) + 2 * sizeof (long long); i++)
     {
-        hash += (i + 1) * (*((char*)stk->data + i));
+        hash += (i + 1) * (*((char*)stk->data - sizeof (long long) + i));
     }
 
     return hash;
@@ -55,10 +55,10 @@ static int Hash_Check (stack* stk)
 
     if (hash != stk->hash)
     {
-        stk_error[11].exst = YES;
+        stk_error[11].exst = true;
         for (int i = 0; i < 3; i++)
         {
-            fprintf (stk->logfile, "\n !!! HASH CHECK ERROR !!! \n\n");
+            fprintf (stk->logfile, "\n !!! HASH CHECK ERROR !!! stk->hash = %lld hash = %lld\n\n", stk->hash, hash);
         }
         return 0;
     }
@@ -77,6 +77,7 @@ static void Hash_Up (stack* stk)
 void Stack_Ctor (stack* stk)
 {
     stk->canary1 = 0xBE31AB;
+    stk->exst = true;
     stk->capacity = CAPACITY_0;
     stk->size = 0;
     stk->data = (type_d*) ((char*) calloc (CAPACITY_0 * sizeof (type_d) + 2 * sizeof (long long), sizeof (char)) + sizeof (long long));
@@ -84,21 +85,26 @@ void Stack_Ctor (stack* stk)
     DATACANARY2 = 0xC0CA0;  //right canary of data
     stk->logfile = fopen ("logfile.txt", "w");
     stk->canary2 = 0xBADDED;
+
     stk->hash = Hash_Calc (stk);
+
     Stack_Check (stk);
 }
 
 void Stack_Dtor (stack* stk)
 {
     Stack_Check (stk);
-    if (stk == NULL && stk->data == NULL)
+    if (stk->exst == false)
     {
-        stk_error[12].exst = YES;
+        stk_error[12].exst = true;
     }
     else
     {
+        stk->exst = false;
         fclose (stk->logfile);
         free ((char*)stk->data - sizeof(long long));
+        stk->data = NULL;
+        stk = NULL;
     }
 }
 
@@ -116,8 +122,8 @@ int Stack_Push (stack* stk, type_d push)
 
     stk->size++;
     stk->data[stk->size - 1] = push;
-    Stack_Check (stk);
     Hash_Up (stk);
+    Stack_Check (stk);
     return 1;
 }
 
@@ -198,7 +204,7 @@ type_d Stack_Pop (stack* stk)
 
     if (stk->size == 0)
     {
-        stk_error[4].exst = YES;
+        stk_error[4].exst = true;
         fprintf (stk->logfile, "!!! STACK UNDERFLOW !!!\n");
         Stack_Dump (stk);
         return 0;
@@ -223,15 +229,26 @@ static int Error_Sum (void)
     return error_sum;
 }
 
-void Stack_Dump (stack* stk)
+int Stack_Dump (stack* stk)
 {
     fprintf (stk->logfile, "Stack [%p]", stk);
     if (Error_Sum () > 0)
     {
         fprintf (stk->logfile, "Stack is BAD:\n");
+
+        if (stk_error[12].exst == true)
+        {
+            fprintf (stk->logfile, "%s\n", stk_error[12].er_name);
+            return 0;
+        }
+        else if (stk_error[9].exst == true)
+        {
+            fprintf (stk->logfile, "%s\n", stk_error[9].er_name);
+            return 0;
+        }
         for (int i = 0; i < 13; i++)
         {
-            if (stk_error[i].exst == YES)
+            if (stk_error[i].exst == true)
             {
                 fprintf (stk->logfile, "%s;\n", stk_error[i].er_name);
             }
@@ -242,67 +259,75 @@ void Stack_Dump (stack* stk)
         fprintf (stk->logfile, "Stack is Ok.");
         fprintf (stk->logfile, "\n");
     }
-    fprintf (stk->logfile, "{\n    canary1 = %0X\n    capacity = %zd\n    size = %lld\n    ", stk->canary1, stk->capacity, stk->size);
-    fprintf (stk->logfile, "data [%p]\n    {\n        ", stk->data);
-    fprintf (stk->logfile, "datacanary1 = %0X\n        ", DATACANARY1);
-    if (stk->capacity <= 48)
+    if (stk_error[9].exst == false)
     {
-        for (size_t i = 0; i < stk->capacity; i++)
+        fprintf (stk->logfile, "{\n    exst = %d\n    canary1 = %0X\n    hash = %lld\n    capacity = %lld\n    size = %lld\n    ", stk->exst, stk->canary1, stk->hash, stk->capacity, stk->size);
+        fprintf (stk->logfile, "data [%p]\n    {\n        ", stk->data);
+        if (stk_error[8].exst == false)
         {
-            if (i < stk->size)
+            fprintf (stk->logfile, "datacanary1 = %0X\n        ", DATACANARY1);
+            if (stk->capacity <= 48)
             {
-                fprintf (stk->logfile, "*[%zd] = ", i);
-                fprintf (stk->logfile, _FMT_, stk->data[i]);
-                fprintf (stk->logfile, "\n        ");
+                for (size_t i = 0; i < stk->capacity; i++)
+                {
+                    if (i < stk->size)
+                    {
+                        fprintf (stk->logfile, "*[%zd] = ", i);
+                        fprintf (stk->logfile, _FMT_, stk->data[i]);
+                        fprintf (stk->logfile, "\n        ");
+                    }
+                    else
+                    {
+                        fprintf (stk->logfile, " [%zd] = ", i);
+                        fprintf (stk->logfile, _FMT_, stk->data[i]);
+                        fprintf (stk->logfile, "\n        ");
+                    }
+                }
             }
             else
             {
-                fprintf (stk->logfile, " [%zd] = ", i);
-                fprintf (stk->logfile, _FMT_, stk->data[i]);
-                fprintf (stk->logfile, "\n        ");
+                for (size_t i = 0; i < 24; i++)
+                {
+                    if (i < stk->size)
+                    {
+                        fprintf (stk->logfile, "*[%zd] = ", i);
+                        fprintf (stk->logfile, _FMT_, stk->data[i]);
+                        fprintf (stk->logfile, "\n        ");
+                    }
+                    else
+                    {
+                        fprintf (stk->logfile, "*[%zd] = ", i);
+                        fprintf (stk->logfile, _FMT_, stk->data[i]);
+                        fprintf (stk->logfile, "\n        ");
+                    }
+                }
+                fprintf (stk->logfile, ".\n        .\n        .\n        ");
+
+                for (size_t i = stk->capacity - 16; i < stk->capacity; i++)
+                {
+                    if (i < stk->size)
+                    {
+                        fprintf (stk->logfile, "*[%zd] = ", i, stk->data[i]);
+                        fprintf (stk->logfile, _FMT_, stk->data[i]);
+                        fprintf (stk->logfile, "\n        ");
+                    }
+                    else
+                    {
+                        fprintf (stk->logfile, " [%zd] = ", i, stk->data[i]);
+                        fprintf (stk->logfile, _FMT_, stk->data[i]);
+                        fprintf (stk->logfile, "\n        ");
+                    }
+                }
             }
+            fprintf (stk->logfile, "datacanary2 = %0X\n    }\n", DATACANARY2);
         }
+        fprintf (stk->logfile, "    canary2 = %0X\n}\n", stk->canary2);
+        return 0;
     }
     else
     {
-        for (size_t i = 0; i < 24; i++)
-        {
-            if (i < stk->size)
-            {
-                fprintf (stk->logfile, "*[%zd] = ", i);
-                fprintf (stk->logfile, _FMT_, stk->data[i]);
-                fprintf (stk->logfile, "\n        ");
-            }
-            else
-            {
-                fprintf (stk->logfile, "*[%zd] = ", i);
-                fprintf (stk->logfile, _FMT_, stk->data[i]);
-                fprintf (stk->logfile, "\n        ");
-            }
-        }
-
-        fprintf (stk->logfile, ".\n        .\n        .\n        ");
-
-        for (size_t i = stk->capacity - 16; i < stk->capacity; i++)
-        {
-            if (i < stk->size)
-            {
-                fprintf (stk->logfile, "*[%zd] = ", i, stk->data[i]);
-                fprintf (stk->logfile, _FMT_, stk->data[i]);
-                fprintf (stk->logfile, "\n        ");
-
-            }
-            else
-            {
-                fprintf (stk->logfile, " [%zd] = ", i, stk->data[i]);
-                fprintf (stk->logfile, _FMT_, stk->data[i]);
-                fprintf (stk->logfile, "\n        ");
-            }
-        }
-
+        return 0;
     }
-    fprintf (stk->logfile, "datacanary2 = %0X\n        }\n", DATACANARY2);
-    fprintf (stk->logfile, "    canary2 = %0X\n", stk->canary2);
 }
 
 int StaCkok (stack* stk)
