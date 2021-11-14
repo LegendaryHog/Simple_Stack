@@ -1,6 +1,11 @@
 #include "stack.h"
 
-bool exst = false;
+static bool exst = false;
+
+static enum{
+    UP,
+    DOWN
+};
 
 typedef struct {
     bool exst;
@@ -98,7 +103,6 @@ void Stack_Dtor (stack* stk)
     Stack_Check (stk);
     if (exst == false)
     {
-        //printf ("\nstack does not exist\n");
         stk_error[11].exst = true;
         Stack_Check (stk);
     }
@@ -116,7 +120,7 @@ int Stack_Push (stack* stk, type_d push)
 {
     Hash_Check (stk);
     Stack_Check (stk);
-    Stack_Resize_Up (stk);
+    Stack_Resize(stk, UP);
     if (isfinite (push) == 0)
     {
         fprintf (stk->logfile, "Type overflow.");
@@ -130,14 +134,23 @@ int Stack_Push (stack* stk, type_d push)
     return 1;
 }
 
-int Stack_Resize_Up (stack* stk)
+int Stack_Resize (stack* stk, int  mode)
 {
     Hash_Check (stk);
     Stack_Check (stk);
 
-    if (stk->size == stk->capacity)
+    long long start_capacity = stk->capacity;
+
+    if (stk->size == stk->capacity && mode == UP || stk->size == stk->capacity/2 - 5 && stk->capacity > CAPACITY_0 && mode == DOWN)
     {
-        stk->capacity *= 2;
+        if (mode == UP)
+        {
+            stk->capacity *= 2;
+        }
+        else
+        {
+            stk->capacity /= 2;
+        }
         stk->data = (type_d*) ((char*)realloc ((void*)((char*)stk->data - sizeof (canary_t)), stk->capacity * sizeof (type_d) + 2 * sizeof (canary_t)) + sizeof (canary_t));
         if ((char*)(stk->data) - sizeof (canary_t) == NULL)
         {
@@ -148,46 +161,16 @@ int Stack_Resize_Up (stack* stk)
         }
         else
         {
-            DATACANARY2 = *((canary_t*)((char*)stk->data + stk->capacity/2 * sizeof (type_d)));
-            *((canary_t*)((char*)stk->data + stk->capacity/2 * sizeof (type_d))) = 0;
-            for (int i = 0; i < stk->capacity/2; i++)
-            {
-                stk->data[stk->capacity/2 + i] = 0;
-            }
-            Stack_Check (stk);
-            Hash_Up (stk);
-            return 1;
-        }
-    }
-    else
-    {
-        Stack_Check (stk);
-        return 0;
-    }
-}
 
-int Stack_Resize_Down (stack* stk)
-{
-    Hash_Check (stk);
-    Stack_Check (stk);
-
-    size_t start_capacity = stk->capacity;
-
-    if (stk->size == stk->capacity/2 - 5)
-    {
-        stk->capacity /= 2;
-        stk->data = (type_d*) ((char*)realloc ((char*)stk->data - sizeof (canary_t), stk->capacity * sizeof (type_d) + 2 * sizeof (canary_t)) + sizeof (canary_t));
-        if ((char*)(stk->data) - sizeof (canary_t) == NULL)
-        {
-            fprintf (stk->logfile, " !!!Stack Resize error!!! :\ncapacity = %z;\nsize = %lld\nGo and buy new laptop.\n", stk->capacity, stk->size);
-            Stack_Check (stk);
-            Hash_Up (stk);
-            return 0;
-        }
-        else
-        {
             DATACANARY2 = *((canary_t*)((char*)stk->data + start_capacity * sizeof (type_d)));
             *((canary_t*)((char*)stk->data + start_capacity * sizeof (type_d))) = 0;
+            if (mode == UP)
+            {
+                for (int i = 0; i < stk->capacity/2; i++)
+                {
+                    stk->data[stk->capacity/2 + i] = 0;
+                }
+            }
             Stack_Check (stk);
             Hash_Up (stk);
             return 1;
@@ -212,7 +195,7 @@ type_d Stack_Pop (stack* stk)
         Stack_Dump (stk);
         return 0;
     }
-    Stack_Resize_Down (stk);
+    Stack_Resize (stk, DOWN);
     stk->size--;
     type_d pop = stk->data[stk->size];
     stk->data[stk->size] = 0;
@@ -228,7 +211,6 @@ static int Error_Sum (void)
     for (int i = 0; i < 12; i++)
     {
         error_sum += stk_error[i].exst;
-        printf ("error %d: %d\n", i, stk_error[i].exst);
     }
     return error_sum;
 }
@@ -237,7 +219,7 @@ int Stack_Dump (stack* stk)
 {
     if (exst == false)
     {
-        printf ("stack does not exist\n");
+        printf ("Stack does not exist\n");
         return 0;
     }
 
@@ -340,8 +322,6 @@ int StaCkok (stack* stk)
 
     if (Error_Sum () > 0)
     {
-        printf ("sum of error bigger null");
-
         return 0;
     }
     else

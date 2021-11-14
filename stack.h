@@ -18,11 +18,6 @@
 
 #define CAPACITY_0 8
 
-enum {
-    NO,
-    YES
-};
-
 typedef struct {
     long long canary1;
     long long size;
@@ -50,9 +45,7 @@ void Stack_Dtor (stack* stk);
 
 int Stack_Push (stack* stk, type_d push);
 
-int Stack_Resize_Up (stack* stk);
-
-int Stack_Resize_Down (stack* stk);
+int Stack_Resize (stack* stk, int mode);
 
 type_d Stack_Pop (stack* stk);
 
