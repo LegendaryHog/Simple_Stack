@@ -9,12 +9,19 @@
 
 #define POISON 1000-7
 
-#define type_d double
+#define data_t double
 #define _FMT_ "%lf"
 #define canary_t long long
 
+#define LOW_CAPACITY 48
+#define START_NUM 24
+#define END_NUM stk->capacity - 16
+#define VLG 34
+#define NULL_PTR_EXIT if (stk == NULL){STACK_P_NULL = true; return 0;}
+#define GOD_LOVE_TRIPLE 3
+
 #define DATACANARY1 *((canary_t*)((char*)stk->data - sizeof (canary_t)))
-#define DATACANARY2 *((canary_t*)((char*)stk->data + stk->capacity * sizeof(type_d)))
+#define DATACANARY2 *((canary_t*)((char*)stk->data + stk->capacity * sizeof(data_t)))
 
 #define CAPACITY_0 8
 
@@ -22,7 +29,7 @@ typedef struct {
     long long canary1;
     long long size;
     long long capacity;
-    type_d* data;
+    data_t* data;
     FILE* logfile;
     long long hash;
     long long canary2;
@@ -32,22 +39,20 @@ typedef struct {
 //Hash
 
 /*static long long Hash_Calc (stack* stk);
-
 static void Hash_Up (stack* stk);
-
 static int Hash_Check (stack* stk);*/
 
 //--------------------------------------------
 
-void Stack_Ctor (stack* stk);
+int Stack_Ctor (stack* stk);
 
 void Stack_Dtor (stack* stk);
 
-int Stack_Push (stack* stk, type_d push);
+int Stack_Push (stack* stk, data_t push);
 
 int Stack_Resize (stack* stk, int mode);
 
-type_d Stack_Pop (stack* stk);
+data_t Stack_Pop (stack* stk);
 
 void ass (int expression, FILE* logfile);
 
@@ -58,4 +63,3 @@ int StaCkok (stack* stk);
 void Stack_Check (stack* stk);
 
 #endif
-
